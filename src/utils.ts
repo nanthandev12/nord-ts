@@ -277,5 +277,8 @@ export async function signUserPayload({
   payload: Uint8Array;
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
 }>): Promise<Uint8Array> {
-  return await signMessage(new TextEncoder().encode(payload.toHex()));
+  // Use Buffer API for cross-platform compatibility (Node.js + Bun)
+  // Bun's native .toHex() method doesn't exist in Node.js
+  const hexString = Buffer.from(payload).toString('hex');
+  return await signMessage(new TextEncoder().encode(hexString));
 }

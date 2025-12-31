@@ -256,6 +256,53 @@ export class NordUser {
     }
   }
 
+  
+  /**
+   * Create a NordUser from session key credentials (session-key-only mode)
+   * 
+   * This method is useful when you have a session key but not the wallet private key.
+   * The resulting NordUser can only perform session-authenticated operations.
+   *
+   * @param nord - Nord instance
+   * @param walletPubkey - Wallet public key
+   * @param sessionPrivateKey - Session private key as base64 string
+   * @param sessionId - Session ID as string
+   * @returns NordUser instance
+   * @throws {NordError} If the session key is invalid
+   */
+  static async fromSessionKey(
+    nord: Nord,
+    walletPubkey: PublicKey,
+    sessionPrivateKey: string,
+    sessionId: string
+  ): Promise<NordUser> {
+    try {
+      const sessionPrivateKeyBytes = Buffer.from(sessionPrivateKey, 'base64');
+      const sessionPublicKey = await ed.getPublicKeyAsync(sessionPrivateKeyBytes);
+      const sessionIdBigInt = BigInt(sessionId);
+
+      return new NordUser({
+        nord,
+        walletPubkey,
+        sessionPubkey: sessionPublicKey,
+        sessionId: sessionIdBigInt,
+        signSessionFn: async (message: Uint8Array) => {
+          return await ed.signAsync(message, sessionPrivateKeyBytes);
+        },
+        signMessageFn: async () => {
+          throw new Error('Wallet signature not available - session key only mode');
+        },
+        signTransactionFn: async () => {
+          throw new Error('Wallet signature not available - session key only mode');
+        },
+      });
+    } catch (error) {
+      throw new NordError("Failed to create NordUser from session key", {
+        cause: error,
+      });
+    }
+  }
+
   /**
    * Get the associated token account for a token mint
    *
